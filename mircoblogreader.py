@@ -1,6 +1,4 @@
 import json
-import os
-from datetime import datetime
 
 def load_posts():
     try:
@@ -9,58 +7,73 @@ def load_posts():
     except FileNotFoundError:
         return []
 
-def find_posts_by_date(date):
-    posts = load_posts()
-    return [post for post in posts if post['timestamp'].startswith(date)]
-
-def display_post(post, display_type, show_images):
-    if show_images:
-        if display_type == 'ansi' and post['type'] == 'ansi':
-            with open(post['art'], 'r') as file:
-                print(file.read())
-        else:
-            print(post['art'])
+def display_post(post, display_type):
+    print("\nTimestamp:", post['timestamp'])
+    print("Text Content:\n")
     print(post['text'])
 
-def paginate_text(text, words_per_page=500):
-    words = text.split()
-    for i in range(0, len(words), words_per_page):
-        print(' '.join(words[i:i+words_per_page]))
-        input("Press Enter to continue...")
+    if display_type == 'A' and post['type'] == 'ascii':
+        print("\nDisplaying ASCII art:\n")
+        print(post['art'])
+    elif display_type == 'N' and post['type'] == 'ansi':
+        try:
+            with open(post['art'], 'r') as file:
+                art = file.read()
+                print(f"\nDisplaying ANSI art from {post['art']}:\n")
+                print(art)
+        except FileNotFoundError:
+            print(f"ANSI art file {post['art']} not found.")
+    elif display_type != 'T':
+        print("\nInvalid display type.")
 
-def display_posts(posts, show_images):
-    for i, post in enumerate(posts, start=1):
-        print(f"\nPost Date: {post['timestamp']}")
-        display_type = 'ascii'
-        if show_images:
-            display_type = input("Choose display type ('ascii' or 'ansi'): ").strip().lower()
-        display_post(post, display_type, show_images)
-        if len(post['text'].split()) > 500:
-            paginate_text(post['text'])
-        if i % 5 == 0:
-            if input("Press 'q' to stop or any key to continue: ").strip().lower() == 'q':
-                break
+def list_posts(posts):
+    for index, post in enumerate(posts, start=1):
+        print(f"\n{index}. Timestamp: {post['timestamp']}")
+    choice = input("Enter the number of the post you want to view, or 'Q' to quit: ").strip()
+    if choice.lower() == 'q':
+        return
+    try:
+        choice = int(choice)
+        if 1 <= choice <= len(posts):
+            display_type = input("Display type - A (ASCII), N (ANSI), or T (Text only): ").strip().upper()
+            display_post(posts[choice - 1], display_type)
+        else:
+            print("Invalid post number.")
+    except ValueError:
+        print("Invalid input. Please enter a valid post number.")
+
+def find_posts_by_date(date, posts):
+    matching_posts = [post for post in posts if post['timestamp'].startswith(date)]
+    return matching_posts
 
 def main():
+    posts = load_posts()
+
     while True:
-        choice = input("\nEnter a date (YYYY-MM-DD) to search, 'list' to list posts, or 'quit' to exit: ").strip().lower()
-        if choice == 'quit':
+        choice = input("\nEnter 'D' to display posts by date, 'L' to list all posts, 'R' to view the most recent post, or 'Q' to quit: ").strip().upper()
+        if choice == 'D':
+            date = input("Enter date (YYYY-MM-DD): ")
+            matching_posts = find_posts_by_date(date, posts)
+            if matching_posts:
+                list_posts(matching_posts)
+            else:
+                print("No posts found for this date.")
+        elif choice == 'L':
+            if posts:
+                list_posts(posts)
+            else:
+                print("No posts available.")
+        elif choice == 'R':
+            if posts:
+                most_recent_post = max(posts, key=lambda x: x['timestamp'])
+                display_type = input("Display type - A (ASCII), N (ANSI), or T (Text only): ").strip().upper()
+                display_post(most_recent_post, display_type)
+            else:
+                print("No posts available.")
+        elif choice == 'Q':
             break
-        elif choice == 'list':
-            show_images = input("Show images? (yes/no): ").strip().lower() == 'yes'
-            posts = load_posts()
-            display_posts(posts, show_images)
         else:
-            try:
-                datetime.strptime(choice, '%Y-%m-%d')
-                posts = find_posts_by_date(choice)
-                if not posts:
-                    print("No posts found for this date.")
-                else:
-                    show_images = input("Show images? (yes/no): ").strip().lower() == 'yes'
-                    display_posts(posts, show_images)
-            except ValueError:
-                print("Invalid date format. Please enter in YYYY-MM-DD format.")
+            print("Invalid choice. Please try again.")
 
 if __name__ == '__main__':
     main()
