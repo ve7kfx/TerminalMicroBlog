@@ -103,7 +103,3 @@ def main():
         print(text_content)
 
 if __name__ == "__main__":
-    main()
-
-   
- 
