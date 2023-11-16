@@ -1,7 +1,6 @@
 import os
 import json
 from datetime import datetime
-from tkinter import Tk, Label, Button, filedialog, messagebox
 from PIL import Image
 
 # ASCII characters used to build the ASCII art
@@ -18,7 +17,7 @@ def image_to_ascii_art(image_path):
     image = Image.open(image_path)
     image = image.convert('L').resize((80, 30))
     pixels = image.getdata()
-    ascii_str = ''.join(ASCII_CHARS[pixel // 25] for pixel in pixels)
+    ascii_str = ''.join(ASCII_CHARS[min(pixel // 28, len(ASCII_CHARS) - 1)] for pixel in pixels)
     return '\n'.join(ascii_str[i:i+80] for i in range(0, len(ascii_str), 80))
 
 def image_to_ansi_art(image_path):
@@ -37,7 +36,7 @@ def image_to_ansi_art(image_path):
 
 def save_ansi_image(art, file_name):
     """
-    Save the ANSI art as a text file in a specific directory.
+    Save the ANSI art as a text file in the ANSI_IMAGE_DIR directory.
     """
     if not os.path.exists(ANSI_IMAGE_DIR):
         os.makedirs(ANSI_IMAGE_DIR)
@@ -55,54 +54,56 @@ def save_post(art, type, text=''):
     with open('posts.json', 'a') as file:
         file.write(json.dumps(post) + '\n')
 
-def display_post(art, text):
+def read_text_file(file_path):
     """
-    Display the art and text as it would appear in the terminal.
+    Read text from a .txt file.
     """
-    print("\n--- Post Start ---\n")
-    print(art)
-    print("\n" + text)
-    print("\n--- Post End ---\n")
+    with open(file_path, 'r') as file:
+        return file.read()
 
-def process_image(file_path, text=''):
+def get_file_path(prompt, file_types):
     """
-    Process the image and text, then save and display them.
+    Get file path from the user.
     """
-    ascii_art = image_to_ascii_art(file_path)
-    ansi_art = image_to_ansi_art(file_path)
-    ansi_image_path = save_ansi_image(ansi_art, os.path.basename(file_path).split('.')[0])
-    save_post(ascii_art, 'ascii', text)
-    save_post(ansi_image_path, 'ansi', text)
-    display_post(ascii_art, text)  # Display ASCII art version
+    path = input(f"{prompt} (Supported types: {', '.join(file_types)}): ")
+    if not os.path.exists(path) or not path.lower().endswith(tuple(file_types)):
+        print("Invalid file path or file type. Please try again.")
+        return get_file_path(prompt, file_types)
+    return path
 
-def select_image():
+def process_image(image_path, text_file=''):
     """
-    Handle image and text file selection.
+    Process the image and text file, then save them.
     """
-    file_path = filedialog.askopenfilename(title="Select an Image", filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.bmp")])
-    if not file_path:
-        messagebox.showinfo("No Image Selected", "You did not select an image file.")
-        return
-
-    text_file = filedialog.askopenfilename(title="Select Text Document (optional)", filetypes=[("Text files", "*.txt")])
-    text_content = ''
+    ascii_art = image_to_ascii_art(image_path)
+    ansi_art = image_to_ansi_art(image_path)
+    ansi_image_path = save_ansi_image(ansi_art, os.path.basename(image_path).split('.')[0])
+    text_content = read_text_file(text_file) if text_file else ''
+    save_post(ascii_art, 'ascii', text_content)
+    save_post(os.path.join(ANSI_IMAGE_DIR, os.path.basename(ansi_image_path)), 'ansi', text_content)
+    print("\n--- ASCII Art ---\n")
+    print(ascii_art)
+    print("\nANSI Art saved at:", ansi_image_path)
     if text_file:
-        with open(text_file, 'r') as file:
-            text_content = file.read()
+        print("\nText from the blog post:")
+        print(text_content)
 
-    process_image(file_path, text_content)
-    status_label.config(text="Image and text processed and saved.")
+def main():
+    print("Welcome to the Microblog Creator")
+    include_image = input("Do you want to include an image in your post? (yes/no): ").lower()
+    text_file_path = get_file_path("Enter the path to the text file", ['.txt'])
 
-# Setting up the GUI
-root = Tk()
-root.title("Micro-Blogging Platform")
+    if include_image == 'yes':
+        image_path = get_file_path("Enter the path to the image file", ['.jpg', '.jpeg', '.png', '.bmp'])
+        process_image(image_path, text_file_path)
+    else:
+        text_content = read_text_file(text_file_path)
+        save_post('', 'text', text_content)
+        print("\nText from the blog post:")
+        print(text_content)
 
-select_button = Button(root, text="Select Image and Text", command=select_image)
-select_button.pack()
+if __name__ == "__main__":
+    main()
 
-status_label = Label(root, text="")
-status_label.pack()
-
-# Run the GUI application
-root.mainloop()
-
+   
+ 
